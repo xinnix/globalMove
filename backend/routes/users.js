@@ -2,92 +2,117 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import db from '../db/init.js';
 import { auth, generateToken } from '../middleware/auth.js';
+import { promisify } from 'util';
 
 const router = express.Router();
 
+// 将查询操作转换为 Promise
+const dbGet = promisify(db.get.bind(db));
+const dbRun = (sql, params) => {
+  return new Promise((resolve, reject) => {
+    db.run(sql, params, function(err) {
+      if (err) reject(err);
+      resolve(this);
+    });
+  });
+};
+const dbAll = promisify(db.all.bind(db));
+
 // 用户注册
 router.post('/register', async (req, res) => {
-  const { username, email, password } = req.body;
+  const { username, password } = req.body;
+
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Username and password are required' });
+  }
 
   try {
-    // 检查用户名和邮箱是否已存在
-    db.get('SELECT id FROM users WHERE username = ? OR email = ?', [username, email], async (err, user) => {
-      if (err) {
-        return res.status(500).json({ error: 'Database error' });
-      }
-      if (user) {
-        return res.status(400).json({ error: 'Username or email already exists' });
-      }
+    // 检查用户名是否已存在
+    const existingUser = await dbGet('SELECT id FROM users WHERE username = ?', [username]);
+    
+    if (existingUser) {
+      return res.status(400).json({ error: 'Username already exists' });
+    }
 
-      // 加密密码
-      const hashedPassword = await bcrypt.hash(password, 10);
+    // 创建新用户
+    const result = await dbRun(
+      'INSERT INTO users (username, password) VALUES (?, ?)',
+      [username, password]
+    );
 
-      // 创建新用户
-      db.run(
-        'INSERT INTO users (username, email, password) VALUES (?, ?, ?)',
-        [username, email, hashedPassword],
-        function(err) {
-          if (err) {
-            return res.status(500).json({ error: 'Error creating user' });
-          }
+    // 生成 JWT token
+    const token = generateToken(result.lastID);
+    
+    // 验证用户是否真的创建成功
+    const newUser = await dbGet('SELECT id, username FROM users WHERE id = ?', [result.lastID]);
+    
+    if (!newUser) {
+      throw new Error('User creation failed');
+    }
 
-          // 生成 JWT token
-          const token = generateToken(this.lastID);
-          res.status(201).json({
-            message: 'User created successfully',
-            token,
-            userId: this.lastID
-          });
-        }
-      );
+    res.status(201).json({
+      message: 'User created successfully',
+      token,
+      userId: result.lastID,
+      username: newUser.username
     });
+
   } catch (error) {
-    res.status(500).json({ error: 'Server error' });
+    console.error('Server error:', error);
+    res.status(500).json({ error: 'Server error during registration' });
   }
 });
 
 // 用户登录
-router.post('/login', (req, res) => {
-  const { email, password } = req.body;
+router.post('/login', async (req, res) => {
+  const { username, password } = req.body;
 
-  db.get('SELECT * FROM users WHERE email = ?', [email], async (err, user) => {
-    if (err) {
-      return res.status(500).json({ error: 'Database error' });
-    }
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Username and password are required' });
+  }
+
+  try {
+    const user = await dbGet('SELECT * FROM users WHERE username = ?', [username]);
+
     if (!user) {
       return res.status(400).json({ error: 'User not found' });
     }
 
-    try {
-      const isMatch = await bcrypt.compare(password, user.password);
-      if (!isMatch) {
-        return res.status(400).json({ error: 'Invalid password' });
-      }
-
-      const token = generateToken(user.id);
-      res.json({
-        message: 'Login successful',
-        token,
-        userId: user.id,
-        username: user.username
-      });
-    } catch (error) {
-      res.status(500).json({ error: 'Server error' });
+    if (user.password !== password) { // 临时修改：测试阶段不使用密码加密
+      return res.status(400).json({ error: 'Invalid password' });
     }
-  });
+
+    const token = generateToken(user.id);
+    res.json({
+      message: 'Login successful',
+      token,
+      userId: user.id,
+      username: user.username
+    });
+
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'Server error during login' });
+  }
 });
 
 // 获取用户信息
-router.get('/me', auth, (req, res) => {
-  db.get('SELECT id, username, email, created_at FROM users WHERE id = ?', [req.user.userId], (err, user) => {
-    if (err) {
-      return res.status(500).json({ error: 'Database error' });
-    }
+router.get('/me', auth, async (req, res) => {
+  try {
+    const user = await dbGet(
+      'SELECT id, username, created_at FROM users WHERE id = ?', 
+      [req.user.userId]
+    );
+
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
+
     res.json(user);
-  });
+  } catch (error) {
+    console.error('Error fetching user:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
 });
 
 // 更新用户信息
@@ -112,18 +137,54 @@ router.patch('/me', auth, async (req, res) => {
     const values = updates.map(field => req.body[field]);
     values.push(req.user.userId);
 
-    db.run(
+    await dbRun(
       `UPDATE users SET ${updateQuery} WHERE id = ?`,
-      values,
-      (err) => {
-        if (err) {
-          return res.status(500).json({ error: 'Error updating user' });
-        }
-        res.json({ message: 'User updated successfully' });
-      }
+      values
     );
+
+    res.json({ message: 'User updated successfully' });
   } catch (error) {
+    console.error('Error updating user:', error);
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// 获取用户活动数据
+router.get('/activities', auth, async (req, res) => {
+  try {
+    // 获取用户的所有活动
+    const activities = await dbAll(`
+      SELECT 
+        a.id,
+        a.created_at as date,
+        at.name as type,
+        n.text as note_text
+      FROM activities a
+      LEFT JOIN activity_types at ON a.type_id = at.id
+      LEFT JOIN notes n ON a.note_id = n.id
+      WHERE a.user_id = ?
+      ORDER BY a.created_at DESC
+    `, [req.user.id]);
+
+    // 获取用户统计数据
+    const stats = await dbGet(`
+      SELECT 
+        (SELECT COUNT(*) FROM notes WHERE user_id = ?) as notes_count,
+        (SELECT COUNT(DISTINCT strftime('%Y-%m-%d', created_at)) FROM activities WHERE user_id = ?) as days_count,
+        (SELECT COUNT(DISTINCT note_id) FROM activities WHERE user_id = ? AND type_id = 2) as practice_count
+    `, [req.user.id, req.user.id, req.user.id]);
+
+    res.json({
+      activities,
+      stats: {
+        notes: stats.notes_count,
+        days: stats.days_count,
+        tags: stats.practice_count // 这里用练习过的笔记数作为标签数
+      }
+    });
+  } catch (error) {
+    console.error('Error getting user activities:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

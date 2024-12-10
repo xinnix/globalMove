@@ -12,7 +12,7 @@ import { Login as LoginIcon } from '@mui/icons-material';
 
 const LoginForm = ({ onLogin, onSwitchToRegister }) => {
   const [formData, setFormData] = useState({
-    email: '',
+    username: '',
     password: '',
   });
   const [error, setError] = useState('');
@@ -54,10 +54,10 @@ const LoginForm = ({ onLogin, onSwitchToRegister }) => {
         <Box sx={{ mb: 2 }}>
           <TextField
             fullWidth
-            label="Email"
-            name="email"
-            type="email"
-            value={formData.email}
+            label="Username"
+            name="username"
+            type="text"
+            value={formData.username}
             onChange={handleChange}
             required
             variant="outlined"

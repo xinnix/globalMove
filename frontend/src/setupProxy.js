@@ -9,7 +9,7 @@ module.exports = function(app) {
       secure: false,
       logLevel: 'debug',
       pathRewrite: {
-        '^/api': ''  
+        '^/api': '/api'  // 不再添加 v1 前缀
       },
       onProxyReq: (proxyReq, req, res) => {
         console.log('Proxy Request:', {

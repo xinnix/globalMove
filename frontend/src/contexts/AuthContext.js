@@ -12,7 +12,7 @@ export const AuthProvider = ({ children }) => {
       const token = localStorage.getItem('token');
       if (token) {
         try {
-          const userData = await authApi.getProfile();
+          const { data: userData } = await authApi.getProfile();
           setUser(userData);
         } catch (error) {
           console.error('Failed to get user profile:', error);
@@ -28,25 +28,37 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (credentials) => {
     try {
-      const response = await authApi.login(credentials);
+      const { data: response } = await authApi.login(credentials);
       localStorage.setItem('token', response.token);
-      const userData = await authApi.getProfile();
+      
+      // 直接使用登录响应中的用户信息
+      const userData = {
+        id: response.userId,
+        username: response.username
+      };
       setUser(userData);
       return userData;
     } catch (error) {
-      throw new Error(error.error || 'Login failed');
+      console.error('Login error:', error.response?.data?.error || error.message);
+      throw new Error(error.response?.data?.error || 'Login failed');
     }
   };
 
   const register = async (userData) => {
     try {
-      const response = await authApi.register(userData);
+      const { data: response } = await authApi.register(userData);
       localStorage.setItem('token', response.token);
-      const profile = await authApi.getProfile();
+      
+      // 直接使用注册响应中的用户信息
+      const profile = {
+        id: response.userId,
+        username: response.username
+      };
       setUser(profile);
       return profile;
     } catch (error) {
-      throw new Error(error.error || 'Registration failed');
+      console.error('Registration error:', error.response?.data?.error || error.message);
+      throw new Error(error.response?.data?.error || 'Registration failed');
     }
   };
 
@@ -56,24 +68,12 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
-  const updateProfile = async (data) => {
-    try {
-      await authApi.updateProfile(data);
-      const updatedProfile = await authApi.getProfile();
-      setUser(updatedProfile);
-      return updatedProfile;
-    } catch (error) {
-      throw new Error(error.error || 'Failed to update profile');
-    }
-  };
-
   const value = {
     user,
     loading,
     login,
     register,
     logout,
-    updateProfile,
   };
 
   return (

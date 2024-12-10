@@ -19,7 +19,6 @@ db.serialize(() => {
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT UNIQUE NOT NULL,
-      email TEXT UNIQUE NOT NULL,
       password TEXT NOT NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
@@ -38,6 +37,54 @@ db.serialize(() => {
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users (id)
     )
+  `);
+
+  // 创建活动类型表
+  db.run(`
+    CREATE TABLE IF NOT EXISTS activity_types (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT UNIQUE NOT NULL
+    )
+  `);
+
+  // 创建活动记录表
+  db.run(`
+    CREATE TABLE IF NOT EXISTS activities (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      note_id INTEGER,
+      type_id INTEGER NOT NULL,
+      date DATE NOT NULL,
+      count INTEGER DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users (id),
+      FOREIGN KEY (note_id) REFERENCES notes (id),
+      FOREIGN KEY (type_id) REFERENCES activity_types (id),
+      UNIQUE(user_id, type_id, date)
+    )
+  `);
+
+  // 创建练习记录表
+  db.run(`
+    CREATE TABLE IF NOT EXISTS practices (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      note_id INTEGER NOT NULL,
+      audio_url TEXT,
+      score FLOAT,
+      feedback TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users (id),
+      FOREIGN KEY (note_id) REFERENCES notes (id)
+    )
+  `);
+
+  // 插入默认的活动类型
+  db.run(`
+    INSERT OR IGNORE INTO activity_types (id, name) VALUES 
+    (1, 'create_note'),
+    (2, 'practice_speaking'),
+    (3, 'review')
   `);
 });
 

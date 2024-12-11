@@ -4,19 +4,27 @@ import { auth } from '../middleware/auth.js';
 import multer from 'multer';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const router = express.Router();
 
-// Configure multer for audio file uploads
+// 确保上传目录存在
+const uploadsDir = join(__dirname, '../uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// 配置 multer
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, join(__dirname, '../uploads'));
+    cb(null, uploadsDir);
   },
   filename: function (req, file, cb) {
-    cb(null, Date.now() + '-' + file.originalname);
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + '-' + file.originalname);
   }
 });
 
@@ -28,7 +36,8 @@ router.post('/', auth, upload.single('audio'), async (req, res) => {
     const { noteId } = req.body;
     const audioUrl = req.file ? `/uploads/${req.file.filename}` : null;
 
-    const result = await db.run(
+    // 插入练习记录
+    const stmt = await db.run(
       'INSERT INTO practices (user_id, note_id, audio_url) VALUES (?, ?, ?)',
       [req.user.userId, noteId, audioUrl]
     );
@@ -45,7 +54,7 @@ router.post('/', auth, upload.single('audio'), async (req, res) => {
     );
 
     res.status(201).json({
-      id: result.lastID,
+      id: stmt.lastID,
       noteId,
       audioUrl,
       message: 'Practice recorded successfully'

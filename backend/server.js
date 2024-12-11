@@ -84,16 +84,13 @@ const authenticateToken = (req, res, next) => {
 // Routes
 console.log('Setting up routes...');
 
-// Public routes (no authentication required)
+// 设置静态文件服务
+app.use('/uploads', express.static(join(__dirname, 'uploads')));
+
+// API 路由
 app.use('/api/v1/users', userRoutes);
-console.log('User routes configured at /api/v1/users');
-
-// Protected routes (require authentication)
 app.use('/api/v1/notes', authenticateToken, noteRoutes);
-console.log('Note routes configured at /api/v1/notes');
-
 app.use('/api/v1/practices', authenticateToken, practicesRoutes);
-console.log('Practices routes configured at /api/v1/practices');
 
 // SQLite 连接配置
 const db = new sqlite3.Database(join(__dirname, 'db', 'database.sqlite'));
@@ -272,6 +269,25 @@ activitiesRouter.post('/', async (req, res) => {
 app.use('/api/v1/activities', authenticateToken, activitiesRouter);
 console.log('Activities routes configured at /api/v1/activities');
 
+// 错误处理中间件
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  res.status(err.status || 500).json({
+    error: err.message || 'Internal Server Error',
+    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+  });
+});
+
+// 404 handler - 必须在所有路由之后
+app.use((req, res) => {
+  console.log('\n=== 404 Not Found ===');
+  console.log('Time:', new Date().toISOString());
+  console.log('Method:', req.method);
+  console.log('Path:', req.path);
+  console.log('===================\n');
+  res.status(404).json({ error: 'Not found' });
+});
+
 // 百度翻译 API 函数
 async function baiduTranslate(text, from = 'zh', to = 'en') {
   if (!text) {
@@ -430,29 +446,6 @@ app.get('/api/activities', authenticateToken, async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
-});
-
-// Serve static files
-app.use('/uploads', cors(), express.static(uploadsDir));
-
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error('\n=== Error ===');
-  console.error('Time:', new Date().toISOString());
-  console.error('Error:', err);
-  console.error('Stack:', err.stack);
-  console.error('=============\n');
-  res.status(500).json({ error: 'Something broke!' });
-});
-
-// 404 handler - 必须在所有路由之后
-app.use((req, res) => {
-  console.log('\n=== 404 Not Found ===');
-  console.log('Time:', new Date().toISOString());
-  console.log('Method:', req.method);
-  console.log('Path:', req.path);
-  console.log('===================\n');
-  res.status(404).json({ error: 'Not found' });
 });
 
 // Start server

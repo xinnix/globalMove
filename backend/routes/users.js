@@ -35,9 +35,12 @@ router.post('/register', async (req, res) => {
     }
 
     // 创建新用户
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+    
     const result = await dbRun(
       'INSERT INTO users (username, password) VALUES (?, ?)',
-      [username, password]
+      [username, hashedPassword]
     );
 
     // 生成 JWT token
@@ -50,16 +53,15 @@ router.post('/register', async (req, res) => {
       throw new Error('User creation failed');
     }
 
-    res.status(201).json({
-      message: 'User created successfully',
+    res.json({
+      message: 'Registration successful',
       token,
-      userId: result.lastID,
+      userId: newUser.id,
       username: newUser.username
     });
-
   } catch (error) {
-    console.error('Server error:', error);
-    res.status(500).json({ error: 'Server error during registration' });
+    console.error('Registration error:', error);
+    res.status(500).json({ error: 'Registration failed' });
   }
 });
 
@@ -72,27 +74,31 @@ router.post('/login', async (req, res) => {
   }
 
   try {
+    // 查找用户
     const user = await dbGet('SELECT * FROM users WHERE username = ?', [username]);
 
     if (!user) {
-      return res.status(400).json({ error: 'User not found' });
+      return res.status(401).json({ error: 'Invalid username or password' });
     }
 
-    if (user.password !== password) { // 临时修改：测试阶段不使用密码加密
-      return res.status(400).json({ error: 'Invalid password' });
+    // 验证密码
+    const validPassword = await bcrypt.compare(password, user.password);
+    if (!validPassword) {
+      return res.status(401).json({ error: 'Invalid username or password' });
     }
 
+    // 生成 token
     const token = generateToken(user.id);
+
     res.json({
       message: 'Login successful',
       token,
       userId: user.id,
       username: user.username
     });
-
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ error: 'Server error during login' });
+    res.status(500).json({ error: 'Login failed' });
   }
 });
 

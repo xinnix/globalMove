@@ -17,7 +17,6 @@ export const AuthProvider = ({ children }) => {
         } catch (error) {
           console.error('Failed to get user profile:', error);
           localStorage.removeItem('token');
-          localStorage.removeItem('user');
         }
       }
       setLoading(false);
@@ -28,43 +27,36 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (credentials) => {
     try {
-      const { data: response } = await authApi.login(credentials);
-      localStorage.setItem('token', response.token);
-      
-      // 直接使用登录响应中的用户信息
-      const userData = {
-        id: response.userId,
-        username: response.username
-      };
-      setUser(userData);
-      return userData;
+      const { data } = await authApi.login(credentials);
+      localStorage.setItem('token', data.token);
+      setUser({
+        id: data.userId,
+        username: data.username
+      });
+      return data;
     } catch (error) {
-      console.error('Login error:', error.response?.data?.error || error.message);
-      throw new Error(error.response?.data?.error || 'Login failed');
+      console.error('Login error:', error);
+      throw error;
     }
   };
 
   const register = async (userData) => {
     try {
-      const { data: response } = await authApi.register(userData);
-      localStorage.setItem('token', response.token);
-      
-      // 直接使用注册响应中的用户信息
-      const profile = {
-        id: response.userId,
-        username: response.username
-      };
-      setUser(profile);
-      return profile;
+      const { data } = await authApi.register(userData);
+      localStorage.setItem('token', data.token);
+      setUser({
+        id: data.userId,
+        username: data.username
+      });
+      return data;
     } catch (error) {
-      console.error('Registration error:', error.response?.data?.error || error.message);
-      throw new Error(error.response?.data?.error || 'Registration failed');
+      console.error('Registration error:', error);
+      throw error;
     }
   };
 
   const logout = () => {
     localStorage.removeItem('token');
-    localStorage.removeItem('user');
     setUser(null);
   };
 
@@ -73,7 +65,7 @@ export const AuthProvider = ({ children }) => {
     loading,
     login,
     register,
-    logout,
+    logout
   };
 
   return (

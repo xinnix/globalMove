@@ -10,7 +10,12 @@ const enTranslations = {
     register: 'Register',
     username: 'Username',
     password: 'Password',
-    logout: 'Logout'
+    logout: 'Logout',
+    title: 'Welcome to GlobalMove',
+    loginTitle: 'Login',
+    registerTitle: 'Register',
+    switchToRegister: 'No account? Register',
+    switchToLogin: 'Have an account? Login'
   },
   practice: {
     startRecording: 'Start Recording',
@@ -30,7 +35,13 @@ const enTranslations = {
     saveNote: 'Save Note',
     inputPlaceholder: 'Enter the sentence you want to practice...',
     practiceCount: 'Practice Count',
-    lastPracticed: 'Last Practiced'
+    lastPracticed: 'Last Practiced',
+    translating: 'Translating...',
+    translate: 'Translate',
+    generating: 'Generating...',
+    generateAudio: 'Generate Audio',
+    play: 'Play',
+    stop: 'Stop'
   },
   stats: {
     practiceStats: 'Practice Statistics',
@@ -49,7 +60,8 @@ const enTranslations = {
     needsPractice: 'Needs practice',
     keepGoing: 'Keep going!',
     newRecord: 'New record!'
-  }
+  },
+  slogan: 'Make Language Learning Fun'
 };
 
 export default enTranslations;

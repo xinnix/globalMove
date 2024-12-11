@@ -10,7 +10,14 @@ const zhTranslations = {
     register: '注册',
     username: '用户名',
     password: '密码',
-    logout: '退出'
+    logout: '退出',
+    title: '欢迎使用 GlobalMove',
+    loginTitle: '登录',
+    registerTitle: '注册',
+    switchToRegister: '还没有账号？去注册',
+    switchToLogin: '已有账号？去登录',
+    fieldsRequired: '用户名和密码不能为空',
+    generalError: '登录失败，请重试'
   },
   practice: {
     startRecording: '开始跟读',
@@ -30,7 +37,13 @@ const zhTranslations = {
     saveNote: '保存笔记',
     inputPlaceholder: '在这里输入你想练习的句子...',
     practiceCount: '练习次数',
-    lastPracticed: '上次练习'
+    lastPracticed: '上次练习',
+    translating: '正在翻译...',
+    translate: '翻译',
+    generating: '正在生成...',
+    generateAudio: '生成语音',
+    play: '播放',
+    stop: '停止'
   },
   stats: {
     practiceStats: '练习统计',
@@ -49,7 +62,8 @@ const zhTranslations = {
     needsPractice: '还需要练习',
     keepGoing: '继续加油！',
     newRecord: '新纪录！'
-  }
+  },
+  slogan: '让语言学习更有趣'
 };
 
 export default zhTranslations;
